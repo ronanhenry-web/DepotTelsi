@@ -1,0 +1,636 @@
+{% extends 'Common/general_layout.html.twig' %}
+
+{% block js_specific_service %}
+    {# TreeView #}
+    <script src="/vendor/vakata-jstree-8c1bcc8/dist/jstree.min.js"></script>
+{% endblock %}
+
+{% block css_specific_service %}
+    {# TreeView #}
+    <link rel="stylesheet" href="/vendor/vakata-jstree-8c1bcc8/dist/themes/default/style.min.css" />
+    
+{% endblock %}
+
+{% block content %}
+
+    <style>
+        .fa-info-circle {
+            color: #66C2C2;
+            background-color: white;
+        }
+    </style>
+
+    {#Div principale avec le treeview#}
+    <div class="containerCustom">
+        <div class="row" id="itemList">
+            <div class="col-md-12 col-sm-12 col-xs-12">
+                <div class="x_panel">
+                    <div class="x_title collapse-link">
+                        <h4> Liste des catégories
+                            <span class="ml-2">
+                                <i class="fas fa-info-circle" style="cursor:pointer" data-toggle="popover" title="Notice" data-html="true"
+                                    data-content="Voici l'arborescence des catégories qui est administrable grâce aux clics droit ;)">
+                                </i>
+                            </span>
+                        </h4>
+                        <div class="clearfix"></div>
+                    </div>
+                    <div class="x_content">
+                        <table id="categoryTree"></table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {#Modale de création#}
+    <div class="modal fade" id="ModalCreateCategory" role="dialog">
+        <div class="modal-dialog" style="max-width: 850px!important;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h4 class="modal-title" id="createCategoryModalLabel">Créer une catégorie
+                        <span class="ml-2">
+                            <i class="fas fa-info-circle" style="cursor:pointer" data-toggle="popover" title="Note sur cette action" data-html="true"
+                                data-content="Information : il y a des catégories Kiamo (mère) et des catégories du Taas (fille)">
+                            </i>
+                        </span>
+                    </h4>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form method="POST" enctype="multipart/form-data" class="form-horizontal form-label-left" id="frmCreateCategory"
+                            action="{{ path_for('interface_qualificationsmanager_create') }}">
+                        <div class="form-group">
+                            <label for="textCategory" class="col-md-4 col-sm-4 col-form-label">Nom *</label>
+                            <div class="col-md-8 col-sm-8">
+                                <input type="text" name="textCategory" id="textCategory" class="form-control" maxlength="50" placeholder="Entrez un nom de la catégorie" required>
+                            </div>
+                            </br>
+                        </div>
+                        <div class="form-group">
+                            <label for="categoryTypeSelector" class="col-md-4 col-sm-4 col-form-label">Type *</label>
+                            <div class="col-md-8 col-sm-8 category-type-container">
+                                <select class="form-control" id="categoryTypeSelector" name="categoryTypeSelector">
+                                    <option selected="selected" disabled>Choisir le type de catégorie</option>
+                                    <option value="kiamo">Catégorie mère</option>
+                                    <option value="taas">Catégorie fille</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="selectedCategoryTaas" class="col-md-4 col-sm-4 col-form-label labelTaas">Catégorie :</label>
+                            <div class="col-md-8 col-sm-8 category-taas-container">
+                                <select class="form-control" id="selectedCategoryTaas" name="selectedCategoryTaas" required>
+                                    <option selected="selected" disabled>Choisir la catégorie parente</option>
+                                    {% for categorie in taasCategories %}
+                                        <option value="{{ categorie.id }}">{{ categorie.name }}</option>
+                                    {% endfor %}
+                                </select>
+                                </div>
+                            </br>
+                        </div>
+                        <div class="form-group">
+                            <label for="selectedCategoryKiamo" class="col-md-4 col-sm-4 col-form-label labelKiamo">Catégorie :</label>
+                            <div class="col-md-8 col-sm-8 category-kiamo-container">
+                                <select class="form-control" id="selectedCategoryKiamo" name="selectedCategoryKiamo">
+                                    <option selected="selected" disabled>Choisir la catégorie Kiamo associée</option>
+                                    {% for categorie in kiamoCategories %}
+                                        <option value="{{ categorie.Id }}">{{ categorie.Name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            </br>
+                        </div>
+                        <div class="form-group">
+                            <label for="selectedService" class="col-md-4 col-sm-4 col-form-label">Services associés :</label>
+                            <div class="col-md-8 col-sm-8" id="selectedServiceContainer">
+                                <div class="input-group">
+                                    <select class="form-control" id="selectedService" name="selectedService" >
+                                        <option selected="selected" value="-1">Choisir le service</option>
+                                        <!--TODO** alimentation dynamique en fonction de la catégorie Kiamo sélectionnée ou celle parente du taas -->
+                                        {# {% for service in services %}
+                                            <option value="{{ service.ServiceId }}">{{ service.ServiceName && service.ServiceName }}</option>
+                                        {% endfor %} #}
+                                    </select>
+                                    <span class="input-group-btn">
+                                        <button type="button" class="btn btn-info btn-add-service" id="addServiceBtn">+</button>
+                                    </span>
+                                </div>
+                            </div>
+                            </br>
+                        </div>
+
+
+
+                        <!--Services Kiamo associés -->
+                        {# <div class="form-group">
+                            <label class="control-label col-lg-2 col-md-3  col-xs-12">Services associés </label>
+                            <!--Si client hébergé chez nous on a un select avec tous les services récupérés depuis Kiamo -->
+                            {% if services %}
+                                <div class="col-lg-3 col-md-4 col-sm-6 col-xs-12">
+                                    <select class="form-control" id="selectedCategoryKiamo">
+                                        <option value="">Choisir le service</option>
+                                        {% for service in services %}
+                                            <option value="{% if service.ServiceId %}{{ service.ServiceId }}{% elseif service.ProcessId %}{{ service.ProcessId }}{% endif %}">
+                                                {% if service.ServiceName %}{{ service.ServiceName }}{% elseif service.ProcessName %}{{ service.ProcessName }}{% endif %}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <!--Bouton d'ajout comme possibilité d'avoir plusieurs services pour une enquête-->
+                                <span class="col-md-2 servicePlus" hidden><i
+                                            class="fa fa-plus">&nbsp;</i>&nbsp;</span>
+                                <!--Sinon c'est une saisie libre où le client doit mettre les id directement-->
+                            {% else %}
+                                <div class="col-md-3 col-sm-6 col-xs-12">
+                                    <input type="text" name="selectedCategoryKiamo" id="selectedCategoryKiamo" class="form-control"
+                                        placeholder="Ex : 50,52,105" value=""/>
+                                </div>
+                            {% endif %}
+                        </div> #}
+                        <!--Div avec l'ensemble des services choisis-->
+                        {# {% if services %}
+                            <div class="divChosenServices form-group" hidden>
+                                <label class="col-md-2 col-sm-6 col-xs-12">Services choisis :</label>
+                                <div class=" col-md-3 chosenServices"></div>
+                                <!--champs caché qui vient récupérer les ids choisis -->
+                                <input type="hidden" class="servicesList" name="selectedCategoryKiamo"/>
+                            </div>
+                        {% endif %} #}
+
+
+
+                        <div class="form-group">
+                            <div class="col-md-4 col-sm-4"></div>
+                            <div class="col-md-4 col-sm-4">
+                                <button type="submit" class="btn btnCreate btn-info" id="btnNewCategory">
+                                    <i class="fa fa-check-circle"></i> Créer
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {#Modale de modification#}
+    <div class="modal fade" id="ModalEditCategory" role="dialog">
+        <div class="modal-dialog" style="max-width: 850px!important;">
+            <div class="modal-content">
+                <form method="post" action="{{ path_for('interface_qualificationsmanager_update') }}" class="form-horizontal form-category-left">
+                    <div class="modal-header">
+                        <h4 class="modal-title" id="modal-title-delete">Confirmer la modification
+                            <span class="ml-2">
+                                <i class="fas fa-info-circle" style="cursor:pointer" data-toggle="popover" title="Note sur cette action" data-html="true"
+                                    data-content="Attention a ne pas choisir une catégorie et une catégorie parente identique !">
+                                </i>
+                            </span>
+                        </h4>
+                        <button type="button" class="close" data-dismiss="modal">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="modal-body">
+                            <input type="hidden" id="editCategoryId" name="editCategoryId" value="">
+                            <div class="form-group">
+                                <label for="editCategoryName" class="col-lg-4 col-md-4 col-form-label">Nom *</label>
+                                <div class="col-lg-8 col-md-8">
+                                    <input type="text" id="editCategoryName" name="editCategoryName" required>
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="categoryTypeSelectorUpdate" class="col-md-4 col-sm-4 col-form-label">Type *</label>
+                                <div class="col-md-8 col-sm-8 category-type-container-update">
+                                    <select class="form-control" id="categoryTypeSelectorUpdate" name="categoryTypeSelectorUpdate">
+                                        <option selected="selected" disabled>Choisir le type de catégorie</option>
+                                        <option value="kiamoUpdate">Catégorie mère</option>
+                                        <option value="taasUpdate">Catégorie fille</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="editCategoryParentIdTaas" class="col-md-4 col-sm-4 col-form-label labelTaasUpdate">Catégorie :</label>
+                                <div class="col-md-8 col-sm-8 category-taas-container-update">
+                                    <select class="form-control" id="selectedCategoryTaas" name="selectedCategoryTaas" required>
+                                        <option selected="selected" disabled>Choisir la catégorie parente</option>
+                                        {% for categorie in taasCategories %}
+                                            <option value="{{ categorie.id }}">{{ categorie.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    </div>
+                                </br>
+                            </div>
+                            <div class="form-group">
+                                <label for="editCategoryParentIdKiamo" class="col-md-4 col-sm-4 col-form-label labelKiamoUpdate">Catégorie :</label>
+                                <div class="col-md-8 col-sm-8 category-kiamo-container-update">
+                                    <select class="form-control" id="selectedCategoryKiamo" name="selectedCategoryKiamo">
+                                        <option selected="selected" disabled>Choisir la catégorie Kiamo associée</option>
+                                        {% for categorie in kiamoCategories %}
+                                            <option value="{{ categorie.Id }}">{{ categorie.Name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                </br>
+                            </div>
+                            
+                            {#
+                            <div class="form-group">
+                                <label for="editCategoryParentId" class="col-lg-4 col-md-4 col-form-label">Choisir la catégorie parente :</label>
+                                <div class="col-lg-8 col-md-8">
+                                    <select class="form-control" id="editCategoryParentId" name="editCategoryParentId">
+                                        <option selected="selected" disabled>Sélectionnez une catégorie parente</option>
+                                        {% for categorie in taasCategories %}
+                                            <option value="{{ categorie.id }}">{{ categorie.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            #}
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-default" data-dismiss="modal">Annuler</button>
+                        <button type="submit" class="btn btn-info">Modifier</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    {#Modale de suppression#}
+    <div class="modal fade" id="ModalDeleteCategory" role="dialog">
+        <div class="modal-dialog" style="max-width: 850px!important;">
+            <div class="modal-content">
+                <form method="post" action="{{ path_for('interface_qualificationsmanager_delete') }}" class="form-horizontal form-category-left">
+                    <div class="modal-header">
+                        <h4 class="modal-title"><i class="fas fa-exclamation-triangle text-warning"></i> Confirmer la suppression
+                            <span class="ml-2">
+                                <i class="fas fa-info-circle" style="cursor:pointer" data-toggle="popover" title="Note sur cette action" data-html="true"
+                                    data-content="On ne peut pas supprimer une catégorie parente">
+                                </i>
+                            </span>
+                        </h4>
+                        <button type="button" class="close" data-dismiss="modal">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <h6>Voulez-vous vraiment supprimer la catégorie <b><span id="deleteCategoryName"></span></b> ?</h6>
+                        <input type="hidden" id="deleteCategoryId" name="deleteCategoryId" value="">
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Annuler</button>
+                        <button type="submit" class="btn btn-info">
+                            <i class="fas fa-trash-alt"></i> Supprimer
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    {# Modal d'ajout de qualifications pour une catégorie#}
+    <div class="modal fade" id="ModalAssociedQualifs" role="dialog">
+        <div class="modal-dialog" style="max-width: 850px!important;">
+            <div class="modal-content">
+                <form method="post" action="{{ path_for('interface_qualificationsmanager_add_qualifs_to_category') }}"
+                        class="form-horizontal form-category-left" id="frmEditParam">
+                        <!--Champ caché avec l'id de la catégorie-->
+                    <input id='modalQualifCategoryId' type="hidden" name="categoryId">
+                    <div class="modal-header">
+                        <h4 class="modal-title" id="modal-title-new">Ajouter des qualifications
+                            <span class="ml-2">
+                                <i class="fas fa-info-circle" style="cursor:pointer" data-toggle="popover" title="Note sur cette action" data-html="true"
+                                    data-content="Si la case est cochée, alors la qualification sera associée">
+                                </i>
+                            </span>
+                        </h4>
+                        <button type="button" class="close" data-dismiss="modal">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <table class="table table-striped">
+                            <thead class="header">
+                            <tr>
+                                <th>Nom</th>
+                                <th>Associer</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <!--TODO** Insertion dynamique en fonction de la catégorie sélectionnée-->
+
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="modal-footer">
+                        <button  type="submit" class="btn btn-info btn-sm btnTable add">
+                            Valider
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+    {% endblock %}
+
+    {% block javascripts %}
+
+        <script type="text/javascript">
+
+            var $table = $('#categoryTree');
+
+            $(document).ready(function() {
+                $('[data-toggle="popover"]').popover({
+                    trigger: 'hover click'
+                });
+
+                var categoriesManagerData = {{ categories | raw }}; // Données des catégories
+                var treeData = buildTreeNodes(categoriesManagerData); // Construction des nœuds du treeview
+                buildTreeView($table, treeData); // Construction du treeview
+
+                $('.category-kiamo-container').hide();
+                $('.category-taas-container').hide();
+                $('.labelTaas').hide();
+                $('.labelKiamo').hide();
+
+                $('#categoryTypeSelector').on('change', function() {
+                    const selectedValue = $(this).val();
+                    const categoryTaasContainer = $('.category-taas-container');
+                    const categoryTaasLabel = $('.labelTaas');
+                    const categoryKiamoContainer = $('.category-kiamo-container');
+                    const categoryKiamoLabel = $('.labelKiamo');
+
+                    if (selectedValue === 'kiamo') {
+                        categoryKiamoContainer.show();
+                        categoryKiamoLabel.show();
+                        categoryTaasContainer.hide();
+                        categoryTaasLabel.hide();
+                    } else if (selectedValue === 'taas') {
+                        categoryTaasContainer.show();
+                        categoryTaasLabel.show();
+                        categoryKiamoContainer.hide();
+                        categoryKiamoLabel.hide();
+                    }
+                });
+
+                $('.category-kiamo-container-update').hide();
+                $('.category-taas-container-update').hide();
+                $('.labelTaasUpdate').hide();
+                $('.labelKiamoUpdate').hide();
+
+                $('#categoryTypeSelectorUpdate').on('change', function() {
+                    const selectedValueUpdate = $(this).val();
+                    const categoryTaasContainerUpdate = $('.category-taas-container-update');
+                    const categoryTaasLabelUpdate = $('.labelTaasUpdate');
+                    const categoryKiamoContainerUpdate = $('.category-kiamo-container-update');
+                    const categoryKiamoLabelUpdate = $('.labelKiamoUpdate');
+
+                    if (selectedValueUpdate === 'kiamoUpdate') {
+                        categoryKiamoContainerUpdate.show();
+                        categoryKiamoLabelUpdate.show();
+                        categoryTaasContainerUpdate.hide();
+                        categoryTaasLabelUpdate.hide();
+                    } else if (selectedValueUpdate === 'taasUpdate') {
+                        categoryTaasContainerUpdate.show();
+                        categoryTaasLabelUpdate.show();
+                        categoryKiamoContainerUpdate.hide();
+                        categoryKiamoLabelUpdate.hide();
+                    }
+                });
+
+                $('#selectedService').on('change', function() {
+                    const selectedServiceId = $(this).val();
+                    const selectedCategoryId = $('#selectedCategoryTaas').val();
+
+                    // Gérer l'ajout du service associé à la catégorie sélectionnée...
+                    //console.log('Service sélectionné : ' + selectedServiceId);
+                    //console.log('Catégorie associée : ' + selectedCategoryId);
+                });
+
+                // Écouteur d'événement pour le bouton "+" (ajouter un nouveau select de service)
+                $('#addServiceBtn').on('click', function () {
+                    const serviceSelect = $('#selectedServiceContainer');
+                    const serviceCount = serviceSelect.find('select').length;
+                    if (serviceCount < 5) {
+                        const newServiceSelect = `
+                        <select class="form-control" id="selectedService${serviceCount + 1}" name="selectedService[]" ${serviceCount > 0 ? 'required' : ''}>
+                            <option selected="selected" disabled>Choisir le service</option>
+                            <option value="-1">Aucun</option>
+                            {% for service in services %}
+                                <option value="{{ service.ServiceId }}">{{ service.ServiceName }}</option>
+                            {% endfor %}
+                        </select>
+                    `;
+
+                        serviceSelect.append(newServiceSelect, ' ');
+
+                        if (serviceCount >= 4) {
+                            $('#addServiceBtn').hide();
+                        }
+                    } else {
+                        alert('Vous ne pouvez ajouter que jusqu\'à 5 services.');
+                    }
+                });
+
+                /*//On fait apparaître le bouton d'ajout de service à partir du moment où un premier est sélectionné
+                $("#kiamoServices").on("change", function () {
+                    if ($("#kiamoServices") !== "-1") {
+                        $(".servicePlus").attr("hidden", false);
+                    }
+                });
+
+                //Au click du bouton plus, on affiche le service choisi en dessous et on le stocke dans le champ caché récupéré ensuite
+                $(".servicePlus").on("click", function () {
+
+                    //On récupère le nom et l'id du service sélectionné
+                    var serviceName = $("#kiamoServices option:selected").html();
+                    var serviceId = $("#kiamoServices option:selected").val();
+
+                    //Si le service n'a pas déjà été sélectionné on effectue le traitement sinon on ne fait rien
+                    if (chosenServicesIds.indexOf(serviceId.toString()) === -1 && serviceId !== "") {
+                        //On affiche la div avec les services choisis
+                        $(".divChosenServices").attr("hidden", false);
+                        //On affiche le nom du service
+                        $(".chosenServices").append(`<div class="divServices divServices${serviceId}"><span class="service${serviceId}" id="${serviceId}"  title="Supprimer">${serviceName}</span><br></div>`)
+
+                        //On les ajoute au champ caché
+                        chosenServicesIds.push($("#kiamoServices").val());
+                        var services = chosenServicesIds.join(",")
+                        $(".servicesList").val(services);
+                    }
+                    //Au click sur un service ajouté on le supprime de la liste
+                    $(".service" + serviceId).on("click", function (e) {
+                        deleteService(e.currentTarget.id);
+                    });
+                });*/
+                
+            });
+
+            function buildTreeNodes(categories) {
+                var nodes = [];
+                categories.forEach(function(category) {
+                    var node = {
+                        id: category.id.toString(), // Identifiant de la catégorie
+                        text: category.name, // Nom de la catégorie
+                        crc_category_id:category.crc_category_id, //Catégorie parente côté Kiamo
+                        children: buildTreeNodes(category.sub_categories) // Construction récursive des sous-catégories
+                    };
+                    nodes.push(node); // Ajout du nœud à la liste des nœuds
+                    
+                });
+                //console.log(nodes);
+                return nodes;
+            }
+
+            function buildTreeView($el, data) {
+                $el.jstree({
+                    core: {
+                        "check_callback": true,
+                        data: data, // Données à afficher dans le treeview
+                        themes: {
+                            responsive: true
+                        }
+                    },
+                    plugins: ['contextmenu', 'wholerow', 'search'],
+                    "contextmenu": {
+                        "items": function ($node) {
+                            var tree = $el.jstree(true);
+                            return {
+                                "Créer": {
+                                    "separator_before": false,
+                                    "separator_after": true,
+                                    "label": "Créer",
+                                    "action": function (obj) {
+                                        
+                                        $('#ModalCreateCategory').modal('show');
+                                    }
+                                },
+                                "Modifier": {
+                                    "separator_before": false,
+                                    "separator_after": false,
+                                    "label": "Modifier",
+                                    "action": function (obj) {
+                                        var nodeId = obj.reference[0];
+                                        var node = $table.jstree(true).get_node(nodeId);
+                                        var categoryId = node.id;
+                                        var categoryName = node.text;
+                                        var categoryParentId = node.parent;
+
+                                        $('#editCategoryId').val(categoryId);
+                                        $('#editCategoryName').val(categoryName);
+                                        $('#editCategoryParentId').val(categoryParentId);
+
+                                        //On récupère la catégorie parente Kiamo de façon à ne proposer que les qualifs associées à celle-ci
+                                        var currentElt = $table.jstree(true).get_node(obj.reference[0]);
+                                        var kiamoCategoryId = currentElt.original.crc_category_id;
+                                        var url = "{{ path_for('interface_qualificationsmanager_get_category_services', {'categoryId':'kiamoCatId'}) }}";
+                                        url = url.replace("kiamoCatId", kiamoCategoryId);
+
+                                        $.ajax({
+                                            type: 'GET',
+                                            url: url,
+                                            dataType: 'json',
+                                            timeout: 5000,
+                                            cache: false
+                                        })
+                                            .success(function (data) {
+
+                                        console.log(data);
+                                            //TODO*** on remplit le select avec les services récupérés
+
+                                            })
+                                            .fail(function (xhr) {
+                                                //On notifie de l'erreur
+                                                if (xhr.status !== 0) {
+                                                    CommonLibrary.addNotification("Un problème est survenu lors de la récupération des données", "Erreur " + xhr.status + " : " + xhr.statusText, "error");
+                                                }
+                                            });
+                                        
+                                        $('#ModalEditCategory').modal('show');
+                                    }
+                                },
+                                "Supprimer": {
+                                    "separator_before": false,
+                                    "separator_after": false,
+                                    "label": "Supprimer",
+                                    "action": function (obj) {
+                                        var nodeId = obj.reference[0];
+                                        var node = $table.jstree(true).get_node(nodeId);
+                                        var categoryId = node.id;
+                                        var categoryName = node.text;
+                                        $('#deleteCategoryName').text(categoryName); // Afficher le nom de la catégorie à supprimer
+                                        $('#deleteCategoryId').val(categoryId); // Stocker l'ID de la catégorie à supprimer
+                                        $('#ModalDeleteCategory').modal('show'); // Afficher la modal de confirmation de suppression
+                                    }
+                                },
+                                "Ajouter des qualifications": {
+                                    "separator_before": false,
+                                    "separator_after": false,
+                                    "label": "Ajouter des qualifications",
+                                    "action": function (obj) {
+                                        //On récupère la catégorie parente Kiamo de façon à ne proposer que les qualifs associées à celle-ci
+                                        var currentElt = $table.jstree(true).get_node(obj.reference[0]);
+                                        var kiamoCategoryId = currentElt.original.crc_category_id;
+                                        var taasCategoryId = currentElt.id;
+
+                                        //On valorise le champ caché du formulaire avec la catégorie du TaaS
+                                        $('#modalQualifCategoryId').val(taasCategoryId);
+
+                                        //Appel API permettant de récupérer les qualifs appartenant à la catégorie Kiamo parente
+                                        var url = "{{ path_for('interface_qualificationsmanager_get_category_qualifications', {'kiamoCategoryId':'kiamoCatId', 'taasCategoryId':'taasCatId'}) }}";
+                                        url = url.replace("kiamoCatId", kiamoCategoryId);
+                                        url = url.replace("taasCatId", taasCategoryId);
+                                        $.ajax({
+                                            type: 'GET',
+                                            url: url,
+                                            dataType: 'json',
+                                            timeout: 5000,
+                                            cache: false
+                                        })
+                                            .success(function (data) {
+                                                //Puis on remplit la modale avec les données qu'on vient de récupérer
+                                                var modalBody = $('#ModalAssociedQualifs .modal-body tbody');
+                                                modalBody.empty(); //On réinitialise à chaque fois les données (sinon cumul à chaque fois)
+                                                if(data.length === 0){
+                                                    $('#ModalAssociedQualifs header').hide();
+                                                    modalBody.html("<p>Aucune qualification associée à la catégorie parente Kiamo</p>");
+                                                }else{
+                                                    data.forEach(function (qualification) {
+                                                        var code = $('<tr>');
+                                                        code.append($('<td>').text(qualification.Code));
+
+                                                        var checkbox = $('<input>').attr({
+                                                            type: 'checkbox',
+                                                            name: 'qualifications[]',
+                                                            value: qualification.Id
+                                                        });
+                                                        //On coche les qualifs déjà associées par le client s'il y en a
+                                                        if(qualification.associated){
+                                                            checkbox.attr('checked', true);
+                                                        }
+                                                        code.append($('<td>').append(checkbox));
+                                                        modalBody.append(code);
+                                                });
+                                                }
+
+                                                 //Ouverture de la modale
+                                                $('#ModalAssociedQualifs').modal('show');
+
+                                            })
+                                            .fail(function (xhr) {
+                                                //On notifie de l'erreur
+                                                if (xhr.status !== 0) {
+                                                    CommonLibrary.addNotification("Un problème est survenu lors de la récupération des données", "Erreur " + xhr.status + " : " + xhr.statusText, "error");
+                                                }
+                                            });
+                                    }
+                                },
+                            };
+                        }
+                    }
+
+                }).on('select_node.jstree', function (e, data) {
+                });
+            }
+
+        </script>
+    {% endblock %}

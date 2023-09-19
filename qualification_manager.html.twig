@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="">
+<head>
+    <title>Qualifications</title>
+    <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <link href="/{{ js_build_path }}/Common/img/favicon.png" type="image/x-icon" rel="shortcut icon"/>
+    <link rel="stylesheet" href="/vendor/bootstrap-4.3.1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="/vendor/fontawesome-free-5.8.2/css/all.css">
+    <link href="/vendor/pnotify/dist/pnotify.css" rel="stylesheet">
+    <link href="/vendor/pnotify/dist/pnotify.buttons.css" rel="stylesheet">
+    <link href="/vendor/pnotify/dist/pnotify.nonblock.css" rel="stylesheet">
+    <script src="/{{ js_build_path }}/Common/js/common_library.js"></script>
+    <script type="text/javascript" src="/vendor/popper-1.14.3/popper.min.js"></script>
+    <script type="text/javascript" src="/vendor/jquery-1.12.14/jquery.min.js"></script>
+    <script src="/vendor/bootstrap-4.3.1/js/bootstrap.min.js" type="text/javascript"></script>
+    <script src="/vendor/pnotify/dist/pnotify.js"></script>
+    <script src="/vendor/pnotify/dist/pnotify.buttons.js"></script>
+    <script src="/vendor/pnotify/dist/pnotify.nonblock.js"></script>
+</head>
+
+<style>
+    .card {
+        box-shadow: 0 2px 16px 0 rgba(0, 0, 0, .1);
+        font-size: 13px !important;
+        text-align: center;
+        background-color: #f9fbfc;
+    }
+
+    nav li{
+        color: #545353;
+        font-style: italic;
+    }
+</style>
+<body>
+
+<div class="container-fluid">
+    <div class="qualifsChoiceDiv row d-block mt-3 ml-3">
+        {% from _self import recursiveCategory %}
+
+        <!--Breadcrumb pour pouvoir navuguer entre les catégories -->
+        <nav id='nav' aria-label="breadcrumb" hidden style="cursor: pointer;">
+            <ol class="breadcrumb" style="background-color: #f9fbfc !important;border:1px solid #cacaca;width: 99%;">
+                <li class="breadcrumb-item" aria-current="page" onclick="goToCategory(-1)">Racine</li>
+                <!-- Insertion dynamique ensuite-->
+            </ol>
+        </nav>
+
+        <!-- Barre de recherche -->
+        <input class="form-control col-md-6 mt-2" type="text" style="width: 18rem;" name="searchQualif"
+               id="searchQualif" placeholder="Recherche">
+
+        <!--Affichage récursif des catégories et qualifications -->
+        {% for category in categories %}
+            {{ recursiveCategory(category, callRef, serviceId, agentId) }}
+        {% endfor %}
+
+    </div>
+</div>
+
+<!--Définition de la macro récursive -->
+{% macro recursiveCategory(category, callRef, serviceId, agentId) %}
+    {% import _self as self %}
+
+    <div id='category{{ category.id }}' categoryId="{{ category.id }}" name='{{ category.name }}'
+         class="card categoriesParent mt-3 mb-3" style="width: 18rem;cursor: pointer">
+        <div class="card-body">
+            <h5>{{ category.name }}</h5>
+        </div>
+    </div>
+    {% if category.sub_categories|length %}
+        <div id='subcategories{{ category.id }}' categoryId="{{ category.id }}" class="subcategories pl-0" hidden>
+            {% for subcategory in category.sub_categories %}
+                {{ self.recursiveCategory(subcategory, callRef, serviceId, agentId) }}
+            {% endfor %}
+        </div>
+    {% endif %}
+    {% if category.qualifications|length %}
+        <div id='qualifications{{ category.id }}' categoryId="{{ category.id }}" class="qualifications card pl-0 mt-4"
+             hidden style="width: 18rem;text-align: inherit!important;">
+            <div class="card-body">
+                <form id="qualifFrm{{ category.id }}">
+                    <!--Champs cachés avec l'id de l'agent, du service et le callRef -->
+                    <input type="hidden" name="callRef" value="{{ callRef }}">
+                    <input type="hidden" name="serviceId" value="{{ serviceId }}">
+                    <input type="hidden" name="agentId" value="{{ agentId }}">
+                    {% for id, name in category.qualifications %}
+                        <div class="form-group ">
+                            <input id="qualif{{ id }}" type="radio" name="qualifId" value="{{ id }}">
+                            <label for="qualif{{ id }}" style="font-size:16px !important;">{{ name }}</label>
+                        </div>
+                    {% endfor %}
+{#                    <input id="qualifBtn" class='form-control mt-2' type="submit" value="Qualifier">#}
+                    <input id="qualifBtn" class='form-control mt-2' type="button" value="Qualifier"
+                           onclick="qualifInteraction({{ category.id }})">
+                </form>
+            </div>
+        </div>
+    {% endif %}
+{% endmacro %}
+
+</body>
+
+<script type="text/javascript">
+
+    let eltClickedId = null;
+    let eltClickedName = null
+
+    $(function () {
+
+        var serviceCategory = {{serviceCategory}};
+
+        //Si le service a une catégorie de paramétrée on se positionne au bon endroit directement
+        if(serviceCategory !== -1){
+
+            //on met à jour le breadcrumb
+            $.each({{ breadcrumb | json_encode | raw}}, function (index, value) {
+                $('#nav').attr('hidden', false);
+                $('.breadcrumb').append('<li id="breadcrumb' + value.id + '" class="breadcrumb-item " aria-current="page"  onclick="goToCategory(' + value.id  + ')">' + value.name + '</li>');
+            });
+
+            //On cache toutes les catégories et qualifications parentes à la catégorie du service
+            $('.categoriesParent').attr('hidden', true);
+            $('.qualifications').attr('hidden', true);
+
+            //On rend visible la bonne sous catégorie et les sous catégories de celle-ci s'il y en a
+            $('#category' + serviceCategory).parent().attr('hidden', false);
+            $('#subcategories' + serviceCategory).attr('hidden', false);
+            $('#subcategories' + serviceCategory + ' .categoriesParent').attr('hidden', false);
+
+            //On rend visible les qualifications de la sous catégorie associé au service (s'il y en a)
+            $('#qualifications' + serviceCategory).attr('hidden', false);
+        }
+
+        //Au click sur une catégorie
+        $('.categoriesParent').on('click', function () {
+
+            eltClickedId = $(this).attr('categoryId');
+            eltClickedName = $(this).attr('name');
+            //On fait apparaître le breadcrumb en lui rajoutant l'élément courant
+            $('#nav').attr('hidden', false);
+            $('.breadcrumb').append('<li id="breadcrumb' + eltClickedId + '" class="breadcrumb-item " aria-current="page"  onclick="goToCategory(' + eltClickedId + ')">' + eltClickedName + '</li>');
+
+            //On cache toutes les catégories et qualifications parentes
+            $('.categoriesParent').attr('hidden', true);
+            $('.qualifications').attr('hidden', true);
+
+            //On rend visible les sous catégories de la catégorie qui vient d'être sélectionnée (s'il y en a)
+            $('#subcategories' + eltClickedId).attr('hidden', false);
+            $('#subcategories' + eltClickedId + ' .categoriesParent').attr('hidden', false);
+
+            //On rend visible les qualifications de la catégorie qui vient d'être sélectionnée (s'il y en a)
+            $('#qualifications' + eltClickedId).attr('hidden', false);
+
+        });
+
+        //Barre de recherche Qualif spécifique
+        $('#searchQualif').on('input', function () {
+            //On met à jour le breadcrumb et on le cache
+            $(".breadcrumb > li").slice(1).remove();
+            $("#nav").attr('hidden', true);
+
+            var name = $('#searchQualif').val().toLowerCase();
+            if (name === '') {
+                reinitToRoot()
+            } else {
+                $('.categoriesParent').attr('hidden', true);
+                $('.subcategories').attr('hidden', true);
+                $('.qualifications').each(function (key, item) {
+                    var val = (item.textContent.toLowerCase());
+
+                    if (!val.includes(name)) {
+                        $(this).attr('hidden', true);
+                    } else {
+                        $(this).attr('hidden', false);
+                        $(this).parent(".subcategories").attr('hidden', false);
+                    }
+                });
+
+            }
+        });
+
+    });
+
+    /**
+     * Aller sur la bonne catégorie à partir du breadcrumb
+     * @param category
+     */
+    function goToCategory(category) {
+        //Si retour à la racine
+        if (category === -1) {
+            reinitToRoot();
+            //Si choix d'une catégorie spécifique
+        } else {
+            // console.log('Niveau courant: ' + eltClickedId + '-' + eltClickedName);
+            // console.log('catégorie breadcrumb sur laquelle on clique : ' + category);
+
+            //Si ce n'est pas la catégorie courante
+            if (eltClickedId != category) {
+
+                //On rend visible les catégories et qualifications du niveau de la catégorie du breaccrumb
+                $('#subcategories' + category + ' .categoriesParent').attr('hidden', false);
+                $('#qualifications' + category).attr('hidden', false);
+
+                //On masque les sous catégories/qualifs de l'élément courant + de tous les sous éléments jusqu'à la catégorie du breadcrumb souhaité (s'il y en a)
+                $('#subcategories' + category).find(".subcategories").attr('hidden', true);
+                $('#subcategories' + category).find(".qualifications").attr('hidden', true);
+
+                //On masque les qualifications de la catégorie de l'élément courant (s'il y en a)
+                $('#qualifications' + eltClickedId).attr('hidden', true);
+
+                //On met à jour le breadcrumb
+                $("#breadcrumb" + category).nextAll().remove();
+            }
+        }
+    }
+
+    //Actions lors du retour à la racine des catégories
+    function reinitToRoot() {
+        //On fait apparaître les catégories parentes et on cache le reste
+        $('.categoriesParent').attr('hidden', false);
+        $('.subcategories').attr('hidden', true);
+        $('.qualifications').attr('hidden', true);
+        //On met à jour le breadcrumb et on le cache
+        $(".breadcrumb > li").slice(1).remove();
+        $("#nav").attr('hidden', true);
+    }
+
+    //Appel service KiamoApi du TaaS pour appeler l'API Kiamo permettant  qualifier l'interaction
+    function qualifInteraction(categoryId) {
+
+        //On ne permet pas de qualifier si on est en mode preview depuis le dashbaord
+        {% if mode != 'preview' %}
+        CommonLibrary.authenticate("{{ authenticateUrl }}","{{ token }}")
+            .success(function(data,status){
+                jwtToken = data.token;
+                $.ajax({
+                    url: '{{ kiamoApiUrl }}',
+                    type: 'POST',
+                    beforeSend: function(request) {
+                        //On récuère un token JWT
+                        request.setRequestHeader("Authorization", "Bearer " + jwtToken);
+                    },
+                    dataType: "json",
+                    data : $("#qualifFrm"+categoryId).serialize(),
+                    success: function (resultat, status) {
+                        CommonLibrary.addNotification("Succès", "Qualification effectuée !", "success");
+
+                    },
+                    error: function (resultat, statut, erreur) {
+                        CommonLibrary.addNotification("Erreur", "Une erreur est survenue", "error");
+                    },
+                    complete: function (resultat, statut) {
+
+                    }
+                });
+            });
+        {% endif %}
+    }
+
+</script>
