@@ -1,4 +1,4 @@
-# Projet PHP
+# Projet Depot Telsi
 
 Gestionnaire des qualifications avec un système de catégorie (Treeview)
 - Réalisé avec Slim sous PHP et avec comme moteur de template Twig,
