@@ -1,10 +1,10 @@
-# Projet Depot Telsi
+# Telsi Depot Project
 
-Gestionnaire des qualifications avec un système de catégorie (Treeview)
-- Réalisé avec Slim sous PHP et avec comme moteur de template Twig,
-- Projet client -> création d'un service 
+Qualification Manager with a Category System (Treeview)
+- Developed with Slim in PHP and using Twig as the templating engine
+- Client project -> creation of a service
 
-## Sources & Outils
+## Sources & Tools
 
 <a href="https://www.php.net" target="_blank" rel="noreferrer"> <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/php/php-original.svg" alt="php" width="40" height="40"/> </a>
 
